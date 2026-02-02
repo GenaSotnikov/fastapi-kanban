@@ -1,0 +1,5 @@
+sqlmodel
+alembic
+fastapi
+psycopg2-binary
+python-dotenv
