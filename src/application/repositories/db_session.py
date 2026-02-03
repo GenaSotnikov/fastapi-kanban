@@ -1,10 +1,15 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class DatabaseSession(ABC):
     @abstractmethod
-    async def select[T](self, model: type[T], params: dict) -> T | None:
+    def select[T](self, model: type[T], params: dict[str, Any]) -> T | None:
         ...
     @abstractmethod
-    async def insert[T](self, model: type[T], data: T) -> T | None:
+    def insert[T](self, model: type[T], data: T) -> T | None:
+        ...
+    
+    @abstractmethod
+    def execute_raw(self, sql_query: str, params: dict[str, Any] | None = None) -> Any:
         ...

@@ -1,8 +1,10 @@
 from fastapi.logger import logger
 import logging
+from typing import Any
 from typing import Annotated, Generator
 from fastapi.params import Depends
 from sqlmodel import Session, create_engine, select
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from application.repositories.db_session import DatabaseSession
@@ -30,12 +32,24 @@ class DatabaseConnection(DatabaseSession):
     def __init__(self, session: SessionDep):
         self.session = session
 
-    # TODO: remove async
-    def select[T](self, model: type[T], params: dict) -> T | None:
-        statement = select(model).filter_by(**params)
-        result = self.session.exec(statement).first()
+    def select[T](self, model: type[T], params: dict[str, Any]) -> T | None:
+        try:
+            statement = select(model)
+            for key, value in params.items():
+                column = getattr(model, key)
+                statement = statement.where(column == value)
+
+            result = self.session.exec(statement).first()
+            return result
+        except AttributeError as e:
+            raise BaseException(f'type {model.__name__} has no attribute {str(e)}')
+    
+    def execute_raw(self, sql_query: str, params: dict[str, Any] | None = None):
+        statement = text(sql_query)
+        result = self.session.execute(statement, params or {})
+        self.session.commit()
         return result
-    # TODO: remove async
+    
     def insert[T](self, model: type[T], data: T) -> T | None:
         self.session.add(data)
         self.session.commit()

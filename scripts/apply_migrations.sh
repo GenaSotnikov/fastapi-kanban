@@ -1,3 +1,4 @@
 set -e
 export PYTHONPATH="$(pwd)/src:${PYTHONPATH}"
-alembic revision --autogenerate -m "${1}"
+
+alembic upgrade head

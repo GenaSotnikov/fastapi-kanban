@@ -8,8 +8,8 @@ load_dotenv()
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-from src.database.entities.user import User
-from src.database.entities.user_creds import UserCredentials
+from database.entities.user import User
+from database.entities.user_creds import UserCredentials
 
 from alembic import context
 

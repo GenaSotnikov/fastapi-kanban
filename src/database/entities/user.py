@@ -1,7 +1,8 @@
+from uuid import UUID, uuid4
 from sqlmodel import SQLModel, Field
-from src.entities.user import User as UserBase
+from entities.user import User as UserBase
 
 
 class User(UserBase, SQLModel, table=True):
-    id: str | None = Field(primary_key=True, index=True)
+    id: UUID | None = Field(primary_key=True, index=True, default_factory=uuid4)
 
