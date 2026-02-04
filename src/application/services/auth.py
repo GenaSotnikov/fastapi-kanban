@@ -3,6 +3,7 @@ from typing import Annotated, Callable, Optional
 
 from fastapi import Depends
 
+from application.services.hash import HashService
 from database.engine import DatabaseConnection
 from entities.user import CreateUserRequest
 from enum import Enum
@@ -16,6 +17,7 @@ class LoginStatuses(Enum):
     CREDENTIALS_NOT_FOUND = "credentials_not_found"
     USER_NOT_FOUND = "user_not_found"
     USER_INACTIVE = "user_inactive"
+    ERROR = "error"
 
 class RegisterStatuses(Enum):
     SUCCESS = "success"
@@ -24,36 +26,42 @@ class RegisterStatuses(Enum):
     NOT_CREATED = "not_created"
 
 @dataclass
+class LoginResult:
+    status: LoginStatuses
+    errorText: Optional[str] = None
+
+@dataclass
 class RegisterResult:
     status: RegisterStatuses
     errorText: Optional[str] = None
-
-type HashFunction = Callable[[str], str]
-
 class AuthorizationService:
-    def __init__(self, user_repository: UserRepository, hash_function: HashFunction):
+    def __init__(self, user_repository: UserRepository, hash_service: HashService):
         self.user_repository = user_repository
-        self.hash_function = hash_function
+        self.hash_function = hash_service.hash_fun
+        self.verify_hash = hash_service.verify
 
-    async def login(self, username: str, password: str) -> LoginStatuses:
-        user = self.user_repository.get_by_username(username)
+    def login(self, username: str, password: str) -> LoginResult:
+        try:
+            user = self.user_repository.get_by_username(username)
 
-        if user is None or user.id is None:
-            return LoginStatuses.USER_NOT_FOUND
-        if user.is_active is False:
-            return LoginStatuses.USER_INACTIVE
+            if user is None or user.id is None:
+                return LoginResult(LoginStatuses.USER_NOT_FOUND)
+            if user.is_active is False:
+                return LoginResult(LoginStatuses.USER_INACTIVE)
 
-        user_creds = self.user_repository.get_credentials_by_user_id(user.id)
+            user_creds = self.user_repository.get_credentials_by_user_id(user.id)
 
-        if user_creds is None: 
-            return LoginStatuses.CREDENTIALS_NOT_FOUND
-        
-        pass_hash = self.hash_function(password)
+            if user_creds is None: 
+                return LoginResult(LoginStatuses.CREDENTIALS_NOT_FOUND)
+            
+            print({ 'password': password, 'real_pass_hash': user_creds.password })
 
-        if user_creds.password != pass_hash:
-            return LoginStatuses.INVALID_CREDENTIALS
-        
-        return LoginStatuses.SUCCESS
+            if not self.verify_hash(password, user_creds.password):
+                return LoginResult(LoginStatuses.INVALID_CREDENTIALS)
+            
+            return LoginResult(LoginStatuses.SUCCESS)
+        except BaseException as e:
+            return LoginResult(LoginStatuses.ERROR, str(e))
 
     async def register(self, createUserRequest: CreateUserRequest) -> RegisterResult:
         try:
@@ -83,8 +91,8 @@ class AuthorizationService:
 
 
 password_hash = PasswordHash.recommended()
-hash_fun: HashFunction = password_hash.hash
+hash_service = HashService(hash_fun=password_hash.hash, verify=password_hash.verify)
 
 def get_auth_service(db_session: Annotated[DatabaseConnection, Depends()]): 
     repository = UserRepository(db_session)
-    return AuthorizationService(repository, hash_fun)
+    return AuthorizationService(repository, hash_service)

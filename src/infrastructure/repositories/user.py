@@ -1,4 +1,3 @@
-from collections.abc import Awaitable
 from typing import cast
 from uuid import UUID
 
@@ -21,10 +20,10 @@ class UserRepository:
         typed_query_res = cast(CursorResult, query_res)
         if typed_query_res is None:
             return None
-        first_record = typed_query_res.first()
+        first_record = typed_query_res.mappings().first()
         if first_record is None:
             return None
-        return cast(User, first_record._data)
+        return cast(User, first_record)
 
     def get_credentials_by_user_id(self, user_id: UUID) -> UserCredentials | None:
         return self.database_session.select(UserCredentials, {"id": user_id})

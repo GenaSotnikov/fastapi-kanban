@@ -9,6 +9,7 @@ from application.services.auth import (
     get_auth_service,
     AuthorizationService,
     RegisterStatuses,
+    LoginStatuses
 )
 
 class CreateUserRequest(CreateUserRequestBase, BaseModel):
@@ -17,8 +18,19 @@ class CreateUserRequest(CreateUserRequestBase, BaseModel):
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login")
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    return {"message": "Login endpoint"}
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], authService: Annotated[AuthorizationService, Depends(get_auth_service)]):
+    res = authService.login(form_data.username, form_data.password)
+    match res.status:
+        case LoginStatuses.USER_NOT_FOUND | LoginStatuses.CREDENTIALS_NOT_FOUND:
+            raise HTTPException(404, { "success": False, 'reason': res.status._value_ })
+        case LoginStatuses.INVALID_CREDENTIALS:
+            raise HTTPException(401, { "success": False, 'reason': res.status._value_ })
+        case LoginStatuses.SUCCESS:
+            return { "success": True }
+        case LoginStatuses.USER_INACTIVE:
+            raise HTTPException(400, { "success": False, 'reason': res.status._value_ })
+        case LoginStatuses.ERROR:
+            raise HTTPException(500, { "success": False, 'reason': res.errorText })
 
 @router.post("/register")
 async def register(payload: CreateUserRequest, authService: Annotated[AuthorizationService, Depends(get_auth_service)]):
