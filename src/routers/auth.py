@@ -11,6 +11,7 @@ from application.services.auth import (
     RegisterStatuses,
     LoginStatuses
 )
+from infrastructure.services.jwt import JwtService
 
 class CreateUserRequest(CreateUserRequestBase, BaseModel):
     pass
@@ -18,7 +19,7 @@ class CreateUserRequest(CreateUserRequestBase, BaseModel):
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login")
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], authService: Annotated[AuthorizationService, Depends(get_auth_service)]):
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], authService: Annotated[AuthorizationService, Depends(get_auth_service)], jwtService: Annotated[JwtService, Depends()]):
     res = authService.login(form_data.username, form_data.password)
     match res.status:
         case LoginStatuses.USER_NOT_FOUND | LoginStatuses.CREDENTIALS_NOT_FOUND:
@@ -26,7 +27,11 @@ async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], auth
         case LoginStatuses.INVALID_CREDENTIALS:
             raise HTTPException(401, { "success": False, 'reason': res.status._value_ })
         case LoginStatuses.SUCCESS:
-            return { "success": True }
+            user_id = res.user_id
+            if user_id is None:
+                raise HTTPException(500, { "success": False, 'reason': 'User ID is missing in the login result' })
+            jwt = jwtService.encode(user_id, form_data.client_id)
+            return { "success": True, "token": jwt }
         case LoginStatuses.USER_INACTIVE:
             raise HTTPException(400, { "success": False, 'reason': res.status._value_ })
         case LoginStatuses.ERROR:

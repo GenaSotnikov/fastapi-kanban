@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Annotated, Callable, Optional
+from typing import Annotated, Optional
+from uuid import UUID
 
 from fastapi import Depends
 
@@ -29,6 +30,7 @@ class RegisterStatuses(Enum):
 class LoginResult:
     status: LoginStatuses
     errorText: Optional[str] = None
+    user_id: Optional[UUID] = None
 
 @dataclass
 class RegisterResult:
@@ -54,12 +56,10 @@ class AuthorizationService:
             if user_creds is None: 
                 return LoginResult(LoginStatuses.CREDENTIALS_NOT_FOUND)
             
-            print({ 'password': password, 'real_pass_hash': user_creds.password })
-
             if not self.verify_hash(password, user_creds.password):
                 return LoginResult(LoginStatuses.INVALID_CREDENTIALS)
             
-            return LoginResult(LoginStatuses.SUCCESS)
+            return LoginResult(LoginStatuses.SUCCESS, user_id=user.id)
         except BaseException as e:
             return LoginResult(LoginStatuses.ERROR, str(e))
 
