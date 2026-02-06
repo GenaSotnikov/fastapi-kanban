@@ -7,8 +7,9 @@ from database.entities.user import User
 from database.entities.user_creds import UserCredentials
 from entities.user import CreateUserRequest, UserRole
 from application.repositories.db_session import DatabaseSession
+from application.repositories.user import UserRepository as UserRepositoryBase
 
-class UserRepository:
+class UserRepository(UserRepositoryBase):
     def __init__(self, database_session: DatabaseSession):
         self.database_session = database_session
 
@@ -25,8 +26,15 @@ class UserRepository:
             return None
         return cast(User, first_record)
 
+    def get_by_id(self, user_id: UUID) -> User | None:
+        res = self.database_session.select(User, {"id": user_id})
+        return res[0] if res else None
+
     def get_credentials_by_user_id(self, user_id: UUID) -> UserCredentials | None:
-        return self.database_session.select(UserCredentials, {"id": user_id})
+        res = self.database_session.select(UserCredentials, {"id": user_id})
+        if not res:
+            return None
+        return res[0] if res else None
 
     async def create_user(self, request: CreateUserRequest) -> User | None:
         user_data = User(

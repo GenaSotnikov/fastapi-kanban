@@ -6,11 +6,11 @@ from pydantic import BaseModel
 
 from entities.user import CreateUserRequest as CreateUserRequestBase
 from application.services.auth import (
-    get_auth_service,
     AuthorizationService,
     RegisterStatuses,
     LoginStatuses
 )
+from infrastructure.services.auth import get_auth_service
 from infrastructure.services.jwt import JwtService
 
 class CreateUserRequest(CreateUserRequestBase, BaseModel):

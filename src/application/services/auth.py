@@ -1,16 +1,12 @@
 from dataclasses import dataclass
-from typing import Annotated, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import Depends
-
 from application.services.hash import HashService
-from database.engine import DatabaseConnection
 from entities.user import CreateUserRequest
 from enum import Enum
-from pwdlib import PasswordHash
 
-from infrastructure.repositories.user import UserRepository
+from application.repositories.user import UserRepository
 
 class LoginStatuses(Enum):
     SUCCESS = "success"
@@ -36,6 +32,13 @@ class LoginResult:
 class RegisterResult:
     status: RegisterStatuses
     errorText: Optional[str] = None
+
+class CheckUserResult(Enum):
+    USER_OK = "user_ok"
+    USER_NOT_FOUND = "user_not_found"
+    USER_INACTIVE = "user_inactive"
+    ERROR = "error"
+
 class AuthorizationService:
     def __init__(self, user_repository: UserRepository, hash_service: HashService):
         self.user_repository = user_repository
@@ -89,10 +92,10 @@ class AuthorizationService:
                 errorText=str(e)
             )
 
-
-password_hash = PasswordHash.recommended()
-hash_service = HashService(hash_fun=password_hash.hash, verify=password_hash.verify)
-
-def get_auth_service(db_session: Annotated[DatabaseConnection, Depends()]): 
-    repository = UserRepository(db_session)
-    return AuthorizationService(repository, hash_service)
+    def check_user(self, user_id: UUID) -> CheckUserResult:
+        user = self.user_repository.get_by_id(user_id)
+        if user is None:
+            return CheckUserResult.USER_NOT_FOUND
+        if not user.is_active:
+            return CheckUserResult.USER_INACTIVE
+        return CheckUserResult.USER_OK

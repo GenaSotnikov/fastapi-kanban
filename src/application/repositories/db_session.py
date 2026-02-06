@@ -4,7 +4,7 @@ from typing import Any
 
 class DatabaseSession(ABC):
     @abstractmethod
-    def select[T](self, model: type[T], params: dict[str, Any]) -> T | None:
+    def select[T](self, model: type[T], params: dict[str, Any]) -> list[T] | None:
         ...
     @abstractmethod
     def insert[T](self, model: type[T], data: T) -> T | None:
